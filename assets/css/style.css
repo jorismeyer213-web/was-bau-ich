@@ -333,27 +333,34 @@ button { font: inherit; color: inherit; }
   display: grid;
   grid-template-columns: 1fr auto;
   grid-template-areas:
-    "twist history"
+    "toggles history"
     "go go";
   align-items: center;
   gap: 12px 16px;
   padding-top: 8px;
 }
 
-.twist-toggle {
-  grid-area: twist;
+.toggles {
+  grid-area: toggles;
   justify-self: start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 16px;
+  min-width: 0;
+}
+
+.toggle {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   min-height: 44px;
-  padding-right: 8px;
   font-size: 0.9375rem;
+  white-space: nowrap;
   color: var(--text-2);
   cursor: pointer;
   user-select: none;
 }
-.twist-toggle:has(:checked) { color: var(--text); }
+.toggle:has(:checked) { color: var(--text); }
 
 .history-btn { grid-area: history; justify-self: end; }
 
@@ -613,9 +620,10 @@ button { font: inherit; color: inherit; }
 @media (min-width: 900px) {
   .app { padding-block: 16px 28px; }
   .controls {
-    grid-template-columns: 1fr minmax(0, 420px) 1fr;
+    /* 400 px Knopf lässt links genug Platz für beide Schalter nebeneinander */
+    grid-template-columns: 1fr minmax(0, 400px) 1fr;
     grid-template-areas:
-      "twist go history"
+      "toggles go history"
       ". hint .";
   }
   .hint { display: block; grid-area: hint; }

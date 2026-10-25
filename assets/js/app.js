@@ -65,11 +65,17 @@
   const KEY_SETTINGS = "wbi.v1.settings";
   const KEY_HISTORY = "wbi.v1.history";
 
+  // Formatgruppen im Modus „Für wen“: die normalen plus Produktideen
+  const FORMAT_GROUPS = { ...D.formate, produktideen: D.produktideen };
+
   const allOn = (obj) => Object.fromEntries(Object.keys(obj).map((k) => [k, true]));
   const DEFAULTS = {
+    mode: "thema",
     formate: allOn(D.formate),
     themen: allOn(D.themen),
     twist: allOn(D.twist),
+    formateFuer: allOn(FORMAT_GROUPS),
+    fuer: allOn(D.fuer),
     twistOn: false,
     sound: true
   };
@@ -77,7 +83,8 @@
   function loadSettings() {
     const saved = store.get(KEY_SETTINGS, {}) || {};
     const out = JSON.parse(JSON.stringify(DEFAULTS));
-    for (const pool of ["formate", "themen", "twist"]) {
+    if (saved.mode === "fuer") out.mode = "fuer";
+    for (const pool of ["formate", "themen", "twist", "formateFuer", "fuer"]) {
       const s = saved[pool];
       if (s && typeof s === "object") {
         for (const k of Object.keys(out[pool])) if (typeof s[k] === "boolean") out[pool][k] = s[k];
@@ -146,21 +153,40 @@
   let pools;
   let bags;
 
+  const isFuer = () => settings.mode === "fuer";
+
   function buildPools() {
     const formats = [];
     const bereiche = [];
+    const fuer = [];
     const twists = [];
-    for (const [key, g] of Object.entries(D.formate)) {
-      if (settings.formate[key]) g.items.forEach((it, idx) => formats.push({ ...it, group: key, groupName: g.name, idx }));
+    const formatGroups = isFuer() ? FORMAT_GROUPS : D.formate;
+    const formatOn = isFuer() ? settings.formateFuer : settings.formate;
+    for (const [key, g] of Object.entries(formatGroups)) {
+      if (formatOn[key]) g.items.forEach((it, idx) => formats.push({ ...it, group: key, groupName: g.name, idx }));
     }
-    for (const [key, g] of Object.entries(D.themen)) {
-      if (settings.themen[key]) g.bereiche.forEach((it, idx) => bereiche.push({ ...it, group: key, groupName: g.name, idx }));
+    if (isFuer()) {
+      for (const [key, g] of Object.entries(D.fuer)) {
+        if (settings.fuer[key]) g.items.forEach((it, idx) => fuer.push({ ...it, group: key, groupName: g.name, idx }));
+      }
+      // eine Twist-Zielgruppe würde sich mit „Für wen“ beißen, deshalb nur Stile
+      D.twist.stil.items.forEach((it, idx) => twists.push({ ...it, type: "stil", typeName: D.twist.stil.name, idx }));
+    } else {
+      for (const [key, g] of Object.entries(D.themen)) {
+        if (settings.themen[key]) g.bereiche.forEach((it, idx) => bereiche.push({ ...it, group: key, groupName: g.name, idx }));
+      }
+      for (const [key, g] of Object.entries(D.twist)) {
+        if (settings.twist[key]) g.items.forEach((it, idx) => twists.push({ ...it, type: key, typeName: g.name, idx }));
+      }
     }
-    for (const [key, g] of Object.entries(D.twist)) {
-      if (settings.twist[key]) g.items.forEach((it, idx) => twists.push({ ...it, type: key, typeName: g.name, idx }));
-    }
-    pools = { formats, bereiche, twists };
-    bags = { format: new Bag(formats), bereich: new Bag(bereiche), twist: new Bag(twists), examples: new Map() };
+    pools = { formats, bereiche, fuer, twists };
+    bags = {
+      format: new Bag(formats),
+      bereich: new Bag(bereiche),
+      fuer: new Bag(fuer),
+      twist: new Bag(twists),
+      examples: new Map()
+    };
   }
 
   function exampleBag(bereich) {
@@ -186,30 +212,37 @@
     return next;
   }
 
-  function inRecentHistory(format, bereich) {
+  // zweite Zeile: Thema-Bereich oder „Für wen“
+  const second = (r) => (r.mode === "fuer" ? r.fuer : r.bereich);
+
+  function inRecentHistory(format, other) {
+    const key = isFuer() ? "w" : "b";
     return history.some((h) =>
+      (h.ref.m || "thema") === settings.mode &&
       h.ref.f[0] === format.group && h.ref.f[1] === format.idx &&
-      h.ref.b[0] === bereich.group && h.ref.b[1] === bereich.idx);
+      h.ref[key] && h.ref[key][0] === other.group && h.ref[key][1] === other.idx);
   }
 
   function drawAll() {
+    const otherBag = isFuer() ? bags.fuer : bags.bereich;
     const format = bags.format.next();
-    let bereich = bags.bereich.next();
-    // Kombination stand gerade im Verlauf: nur den Bereich tauschen
-    for (let tries = 0; tries < 5 && pools.bereiche.length > 1 && inRecentHistory(format, bereich); tries++) {
-      const rejected = bereich;
-      bereich = bags.bereich.next();
-      bags.bereich.putBack(rejected);
+    let other = otherBag.next();
+    // Kombination stand gerade im Verlauf: nur die zweite Zeile tauschen
+    for (let tries = 0; tries < 5 && otherBag.items.length > 1 && inRecentHistory(format, other); tries++) {
+      const rejected = other;
+      other = otherBag.next();
+      otherBag.putBack(rejected);
     }
-    const beispiel = exampleBag(bereich).next();
     const twist = settings.twistOn && pools.twists.length ? bags.twist.next() : null;
-    return { format, bereich, beispiel, twist };
+    if (isFuer()) return { mode: "fuer", format, fuer: other, twist };
+    return { mode: "thema", format, bereich: other, beispiel: exampleBag(other).next(), twist };
   }
 
   /* ---------- Satz ---------- */
 
   function sentenceParts(r) {
-    const parts = [["Bau "], [r.format.akk, true], [" "], [r.beispiel.satz, true]];
+    const target = r.mode === "fuer" ? r.fuer.satz : r.beispiel.satz;
+    const parts = [["Bau "], [r.format.akk, true], [" "], [target, true]];
     if (r.twist) parts.push([" – "], [r.twist.satz, true]);
     parts.push(["."]);
     return parts;
@@ -507,8 +540,13 @@
 
   const names = {
     formats: () => pools.formats.map((x) => x.name),
-    bereiche: () => pools.bereiche.map((x) => x.name),
+    others: () => (isFuer() ? pools.fuer : pools.bereiche).map((x) => x.name),
     twists: () => pools.twists.map((x) => x.name)
+  };
+
+  const themaLabel = $("themaLabel");
+  const setSecondLabel = (mode) => {
+    themaLabel.textContent = mode === "fuer" ? "Für wen" : "Thema";
   };
 
   /* ---------- Ablauf ---------- */
@@ -523,12 +561,13 @@
     stageEl.setAttribute("aria-busy", "true");
     goLabel.textContent = LABEL_BUSY;
     sentenceEl.classList.add("is-hidden");
+    setSecondLabel(r.mode);
     return run;
   }
 
   function prepareSlots(r) {
     for (const s of Object.values(slots)) s.root.classList.remove("is-locked");
-    exampleBtn.hidden = false;
+    exampleBtn.hidden = r.mode === "fuer";
     exampleBtn.classList.add("is-dim");
     const tw = slots.twist.root;
     tw.hidden = !r.twist;
@@ -539,9 +578,11 @@
     if (reduceMotion.matches) {
       const gap = TIMING.calmGap;
       if (!(await rollSlot(slots.format, null, r.format.name, r.format.groupName, 180, {}, run))) return false;
-      if (!(await rollSlot(slots.thema, null, r.bereich.name, r.bereich.groupName, 160, { delay: gap }, run))) return false;
-      if (!(await wait(gap, run))) return false;
-      if (!(await rollExample(r.beispiel.text, run))) return false;
+      if (!(await rollSlot(slots.thema, null, second(r).name, second(r).groupName, 160, { delay: gap }, run))) return false;
+      if (r.mode !== "fuer") {
+        if (!(await wait(gap, run))) return false;
+        if (!(await rollExample(r.beispiel.text, run))) return false;
+      }
       if (r.twist) {
         slots.twist.root.classList.remove("is-dim");
         if (!(await rollSlot(slots.twist, null, r.twist.name, r.twist.typeName, 200, { delay: gap }, run))) return false;
@@ -551,11 +592,11 @@
 
     const both = await Promise.all([
       rollSlot(slots.format, names.formats(), r.format.name, r.format.groupName, 180, TIMING.format, run),
-      rollSlot(slots.thema, names.bereiche(), r.bereich.name, r.bereich.groupName, 160, TIMING.thema, run)
+      rollSlot(slots.thema, names.others(), second(r).name, second(r).groupName, 160, TIMING.thema, run)
     ]);
     if (!both.every(Boolean)) return false;
     if (!(await wait(100, run))) return false;
-    if (!(await rollExample(r.beispiel.text, run))) return false;
+    if (r.mode !== "fuer" && !(await rollExample(r.beispiel.text, run))) return false;
     if (r.twist) {
       slots.twist.root.classList.remove("is-dim");
       if (!(await rollSlot(slots.twist, names.twists(), r.twist.name, r.twist.typeName, 200, TIMING.twist, run))) return false;
@@ -571,11 +612,12 @@
     }
     slots.format.word.textContent = r.format.name;
     slots.format.group.textContent = r.format.groupName;
-    slots.thema.word.textContent = r.bereich.name;
-    slots.thema.group.textContent = r.bereich.groupName;
-    exampleBtn.hidden = false;
+    setSecondLabel(r.mode);
+    slots.thema.word.textContent = second(r).name;
+    slots.thema.group.textContent = second(r).groupName;
+    exampleBtn.hidden = r.mode === "fuer";
     exampleBtn.classList.remove("is-dim");
-    exampleText.textContent = r.beispiel.text;
+    exampleText.textContent = r.mode === "fuer" ? "" : r.beispiel.text;
     const tw = slots.twist.root;
     tw.classList.remove("is-dim");
     tw.hidden = !r.twist;
@@ -591,8 +633,12 @@
 
   function updateAria(r) {
     slots.format.btn.setAttribute("aria-label", `Format: ${r.format.name}. Nur das Format neu würfeln`);
-    slots.thema.btn.setAttribute("aria-label", `Thema: ${r.bereich.name}. Nur das Thema neu würfeln`);
-    exampleBtn.setAttribute("aria-label", `Beispiel: ${r.beispiel.text}. Nur das Beispiel neu würfeln`);
+    if (r.mode === "fuer") {
+      slots.thema.btn.setAttribute("aria-label", `Für wen: ${r.fuer.name}. Nur „Für wen“ neu würfeln`);
+    } else {
+      slots.thema.btn.setAttribute("aria-label", `Thema: ${r.bereich.name}. Nur das Thema neu würfeln`);
+      exampleBtn.setAttribute("aria-label", `Beispiel: ${r.beispiel.text}. Nur das Beispiel neu würfeln`);
+    }
     if (r.twist) slots.twist.btn.setAttribute("aria-label", `${r.twist.typeName}: ${r.twist.name}. Nur den Twist neu würfeln`);
   }
 
@@ -648,7 +694,8 @@
     sound.init();
     const r = { ...current };
     if (kind === "format") r.format = drawDifferent(bags.format, current.format, sameFormat);
-    if (kind === "thema") {
+    if (kind === "thema" && r.mode === "fuer") r.fuer = drawDifferent(bags.fuer, current.fuer, sameBereich);
+    if (kind === "thema" && r.mode !== "fuer") {
       r.bereich = drawDifferent(bags.bereich, current.bereich, sameBereich);
       r.beispiel = exampleBag(r.bereich).next();
     }
@@ -660,9 +707,11 @@
     let ok = true;
     if (kind === "format") {
       ok = await rollSlot(slots.format, names.formats(), r.format.name, r.format.groupName, 180, t, run);
+    } else if (kind === "thema" && r.mode === "fuer") {
+      ok = await rollSlot(slots.thema, names.others(), r.fuer.name, r.fuer.groupName, 160, t, run);
     } else if (kind === "thema") {
       exampleBtn.classList.add("is-dim");
-      ok = (await rollSlot(slots.thema, names.bereiche(), r.bereich.name, r.bereich.groupName, 160, t, run)) &&
+      ok = (await rollSlot(slots.thema, names.others(), r.bereich.name, r.bereich.groupName, 160, t, run)) &&
         (await rollExample(r.beispiel.text, run));
     } else if (kind === "beispiel") {
       ok = await rollExample(r.beispiel.text, run);
@@ -697,16 +746,17 @@
     if (!r) return;
     sound.init();
     if (state.busy) state.run++;
+    if (r.mode !== settings.mode) setMode(r.mode, { keepView: true });
     setTwistOn(!!r.twist);
     const run = begin(r, false);
     prepareSlots(r);
     exampleBtn.classList.remove("is-dim");
     slots.twist.root.classList.remove("is-dim");
     const d = TIMING.restore;
-    const jobs = reduceMotion.matches
-      ? [fadeTo(slots.format.word, r.format.name, run), fadeTo(slots.thema.word, r.bereich.name, run), fadeTo(exampleText, r.beispiel.text, run)]
-      : [decode(slots.format.word, r.format.name, d, run), decode(slots.thema.word, r.bereich.name, d, run), decode(exampleText, r.beispiel.text, d, run, 0.4)];
-    if (r.twist) jobs.push(reduceMotion.matches ? fadeTo(slots.twist.word, r.twist.name, run) : decode(slots.twist.word, r.twist.name, d, run));
+    const show = (el, text, vol) => (reduceMotion.matches ? fadeTo(el, text, run) : decode(el, text, d, run, vol));
+    const jobs = [show(slots.format.word, r.format.name), show(slots.thema.word, second(r).name)];
+    if (r.mode !== "fuer") jobs.push(show(exampleText, r.beispiel.text, 0.4));
+    if (r.twist) jobs.push(show(slots.twist.word, r.twist.name));
     const done = await Promise.all(jobs);
     if (!done.every(Boolean) || run !== state.run) return;
     sound.klack(170);
@@ -716,28 +766,36 @@
 
   /* ---------- Verlauf ---------- */
 
-  const refOf = (r) => ({
-    f: [r.format.group, r.format.idx],
-    b: [r.bereich.group, r.bereich.idx],
-    e: r.beispiel.idx,
-    t: r.twist ? [r.twist.type, r.twist.idx] : null
-  });
+  // m: Modus, f: Format, b/e: Bereich + Beispiel (Thema), w: Für wen, t: Twist – jeweils [Gruppe, Index]
+  function refOf(r) {
+    const ref = { m: r.mode, f: [r.format.group, r.format.idx], t: r.twist ? [r.twist.type, r.twist.idx] : null };
+    if (r.mode === "fuer") ref.w = [r.fuer.group, r.fuer.idx];
+    else Object.assign(ref, { b: [r.bereich.group, r.bereich.idx], e: r.beispiel.idx });
+    return ref;
+  }
 
+  // ältere Einträge haben noch kein m und stammen aus dem Thema-Modus
   function fromRef(ref) {
     try {
-      const fg = D.formate[ref.f[0]];
-      const bg = D.themen[ref.b[0]];
+      const fg = FORMAT_GROUPS[ref.f[0]];
       const format = { ...fg.items[ref.f[1]], group: ref.f[0], groupName: fg.name, idx: ref.f[1] };
-      const bereich = { ...bg.bereiche[ref.b[1]], group: ref.b[0], groupName: bg.name, idx: ref.b[1] };
-      const beispiel = { ...bereich.beispiele[ref.e], idx: ref.e };
       let twist = null;
       if (ref.t) {
         const tg = D.twist[ref.t[0]];
         twist = { ...tg.items[ref.t[1]], type: ref.t[0], typeName: tg.name, idx: ref.t[1] };
         if (!twist.name) return null;
       }
-      if (!format.name || !bereich.name || !beispiel.text) return null;
-      return { format, bereich, beispiel, twist };
+      if (!format.name) return null;
+      if (ref.m === "fuer") {
+        const wg = D.fuer[ref.w[0]];
+        const fuer = { ...wg.items[ref.w[1]], group: ref.w[0], groupName: wg.name, idx: ref.w[1] };
+        return fuer.name ? { mode: "fuer", format, fuer, twist } : null;
+      }
+      const bg = D.themen[ref.b[0]];
+      const bereich = { ...bg.bereiche[ref.b[1]], group: ref.b[0], groupName: bg.name, idx: ref.b[1] };
+      const beispiel = { ...bereich.beispiele[ref.e], idx: ref.e };
+      if (!bereich.name || !beispiel.text) return null;
+      return { mode: "thema", format, bereich, beispiel, twist };
     } catch (e) {
       return null;
     }
@@ -799,11 +857,21 @@
 
   /* ---------- Filter ---------- */
 
-  const SECTIONS = [
-    { pool: "formate", title: "Formate", src: D.formate, count: (g) => g.items.length },
-    { pool: "themen", title: "Themen", src: D.themen, count: (g) => g.bereiche.length },
-    { pool: "twist", title: "Twist würfelt aus", src: D.twist, count: (g) => g.items.length }
-  ];
+  // Im Modus „Für wen“ gibt es eigene Format-Schalter (mit Produktideen) und keinen Twist-Filter (nur Stile).
+  function sections() {
+    const items = (g) => g.items.length;
+    if (isFuer()) {
+      return [
+        { pool: "formateFuer", title: "Formate", src: FORMAT_GROUPS, count: items },
+        { pool: "fuer", title: "Für wen", src: D.fuer, count: items }
+      ];
+    }
+    return [
+      { pool: "formate", title: "Formate", src: D.formate, count: items },
+      { pool: "themen", title: "Themen", src: D.themen, count: (g) => g.bereiche.length },
+      { pool: "twist", title: "Twist würfelt aus", src: D.twist, count: items }
+    ];
+  }
 
   function el(tag, cls, text) {
     const n = document.createElement(tag);
@@ -812,9 +880,12 @@
     return n;
   }
 
+  const optsWrap = $("opts");
+
   function renderOptions() {
-    const wrap = $("opts");
-    for (const sec of SECTIONS) {
+    const wrap = optsWrap;
+    wrap.textContent = "";
+    for (const sec of sections()) {
       const fs = el("fieldset", "opt-group");
       fs.appendChild(el("legend", "opt-group__title", sec.title));
       for (const [key, g] of Object.entries(sec.src)) {
@@ -839,20 +910,21 @@
       fs.appendChild(note);
       wrap.appendChild(fs);
     }
-    wrap.addEventListener("change", (e) => {
-      const t = e.target;
-      if (!t.dataset || !t.dataset.pool) return;
-      settings[t.dataset.pool][t.dataset.key] = t.checked;
-      saveSettings();
-      buildPools();
-      refreshOptionStates();
-      updateCombos();
-    });
     refreshOptionStates();
   }
 
+  optsWrap.addEventListener("change", (e) => {
+    const t = e.target;
+    if (!t.dataset || !t.dataset.pool) return;
+    settings[t.dataset.pool][t.dataset.key] = t.checked;
+    saveSettings();
+    buildPools();
+    refreshOptionStates();
+    updateCombos();
+  });
+
   function refreshOptionStates() {
-    for (const sec of SECTIONS) {
+    for (const sec of sections()) {
       const active = Object.keys(settings[sec.pool]).filter((k) => settings[sec.pool][k]);
       const lastOne = active.length === 1;
       for (const key of Object.keys(sec.src)) {
@@ -867,8 +939,8 @@
   const fmtNum = (n) => n.toLocaleString("de-DE");
 
   function updateCombos() {
-    const examples = pools.bereiche.reduce((sum, b) => sum + b.beispiele.length, 0);
-    let total = pools.formats.length * examples;
+    const others = isFuer() ? pools.fuer.length : pools.bereiche.reduce((sum, b) => sum + b.beispiele.length, 0);
+    let total = pools.formats.length * others;
     if (settings.twistOn) total *= pools.twists.length;
     $("comboNum").textContent = fmtNum(total);
     $("comboLabel").textContent = settings.twistOn ? "mögliche Kombinationen mit Twist" : "mögliche Kombinationen";
@@ -890,6 +962,54 @@
     twistToggle.checked = on;
     saveSettings();
     updateCombos();
+  }
+
+  /* ---------- Modus ---------- */
+
+  const modeToggle = $("modeToggle");
+  const PLACEHOLDER = { thema: ["Was bau ich?", "Und worüber?"], fuer: ["Was bau ich?", "Und für wen?"] };
+
+  // Startansicht des aktuellen Modus: die beiden Fragen statt eines Ergebnisses
+  function showFresh() {
+    current = null;
+    app.classList.add("is-fresh");
+    setSecondLabel(settings.mode);
+    for (const s of Object.values(slots)) {
+      s.root.classList.remove("is-locked", "is-dim");
+      s.word.classList.remove("is-flicker");
+      s.group.textContent = "";
+      s.btn.disabled = true;
+    }
+    slots.format.word.textContent = PLACEHOLDER[settings.mode][0];
+    slots.thema.word.textContent = PLACEHOLDER[settings.mode][1];
+    slots.twist.root.hidden = true;
+    exampleBtn.hidden = true;
+    exampleBtn.disabled = true;
+    sentenceEl.textContent = "Drück den Knopf – oder die Leertaste.";
+    sentenceEl.classList.remove("is-hidden");
+    slots.format.btn.setAttribute("aria-label", "Nur das Format neu würfeln");
+    slots.thema.btn.setAttribute("aria-label", isFuer() ? "Nur „Für wen“ neu würfeln" : "Nur das Thema neu würfeln");
+    liveEl.textContent = "";
+  }
+
+  // keepView: beim Wiederherstellen aus dem Verlauf nicht erst auf die Startansicht springen
+  function setMode(mode, opts) {
+    settings.mode = mode;
+    modeToggle.checked = mode === "fuer";
+    saveSettings();
+    buildPools();
+    renderOptions();
+    updateCombos();
+    if (opts && opts.keepView) return;
+    if (state.busy) {
+      state.run++;
+      state.busy = false;
+      state.pending = null;
+      app.classList.remove("is-spinning");
+      stageEl.removeAttribute("aria-busy");
+      goLabel.textContent = LABEL_IDLE;
+    }
+    showFresh();
   }
 
   /* ---------- Sheets ---------- */
@@ -970,6 +1090,11 @@
     else if (!settings.twistOn && current.twist) removeTwist();
   });
 
+  modeToggle.addEventListener("change", () => {
+    sound.init();
+    setMode(modeToggle.checked ? "fuer" : "thema");
+  });
+
   // Leertaste / Enter würfeln, solange kein Bedienelement den Fokus hat.
   document.addEventListener("keydown", (e) => {
     if (e.key !== " " && e.key !== "Enter") return;
@@ -987,9 +1112,11 @@
   buildPools();
   renderOptions();
   twistToggle.checked = settings.twistOn;
+  modeToggle.checked = isFuer();
   setSound(settings.sound);
   updateCombos();
   renderHistoryCount();
+  showFresh();
 
   // Offline-Fähigkeit nur, wenn die Seite als installierbare App ausgeliefert wird.
   if ("serviceWorker" in navigator && document.querySelector('link[rel="manifest"]') && /^https?:$/.test(location.protocol)) {
@@ -999,5 +1126,5 @@
   }
 
   // für die Datenprüfung im Browser
-  window.WBI = { drawAll, sentenceText, pools: () => pools, settings };
+  window.WBI = { drawAll, sentenceText, pools: () => pools, settings, setMode };
 })();

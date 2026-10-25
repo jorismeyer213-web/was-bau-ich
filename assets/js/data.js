@@ -13,6 +13,8 @@
   });
   // Twist: [Anzeige, Satzstück]
   const t = (name, satz) => ({ name, satz });
+  // Für wen: Anzeige, Satzstück nur angeben, wenn es nicht einfach „für <Anzeige>“ ist
+  const w = (name, satz) => ({ name, satz: satz || "für " + name });
 
   window.WBI_DATA = {
     formate: {
@@ -491,6 +493,69 @@
             ["Spießerin, die die Hausordnung auswendig kennt", "für eine Spießerin, die die Hausordnung auswendig kennt"],
             ["Spießerin, die zum ersten Mal auf ein Festival geht", "für eine Spießerin, die zum ersten Mal auf ein Festival geht"]
           ])
+        ]
+      }
+    },
+
+    // nur im Modus „Für wen“: zusätzliche Formate neben Digital und Bewegtbild
+    produktideen: {
+      name: "Produktideen",
+      items: [
+        f("Wecker-App", "eine Wecker-App"),
+        f("To-do-App", "eine To-do-App"),
+        f("Kalender-App", "eine Kalender-App"),
+        f("Habit-Tracker", "einen Habit-Tracker"),
+        f("Budget-App", "eine Budget-App"),
+        f("Rezept-App", "eine Rezept-App"),
+        f("Dating-App", "eine Dating-App"),
+        f("Lern-App", "eine Lern-App"),
+        f("Handy-Spiel", "ein Handy-Spiel"),
+        f("Browser-Erweiterung", "eine Browser-Erweiterung"),
+        f("Smart-Home-Steuerung", "eine Smart-Home-Steuerung"),
+        f("Navigations-App", "eine Navigations-App"),
+        f("Einkaufslisten-App", "eine Einkaufslisten-App"),
+        f("Wetter-App", "eine Wetter-App"),
+        f("Meditations-App", "eine Meditations-App"),
+        f("Packlisten-App", "eine Packlisten-App"),
+        f("Kleiderschrank-App", "eine Kleiderschrank-App"),
+        f("Sprachassistent", "einen Sprachassistenten"),
+        f("Social-Media-Plattform", "eine Social-Media-Plattform"),
+        f("Erinnerungs-Widget", "ein Erinnerungs-Widget")
+      ]
+    },
+
+    // Modus „Für wen“: statt Thema würfelt die App, für wen gebaut wird
+    fuer: {
+      typen: {
+        name: "Typen",
+        items: [
+          w("Chaoten"), w("Morgenmuffel"), w("Nachteulen"), w("Besserwisser"), w("Sparfüchse"),
+          w("Perfektionisten"), w("Zuspätkommer"), w("Nörgler"), w("Stubenhocker"), w("Angeber"),
+          w("Couch-Potatoes"), w("Jammerlappen"), w("Technikmuffel"), w("Workaholics"), w("Dramaqueens"),
+          w("Aufschieber"), w("Kontrollfreaks"), w("Spießer"), w("Weltverbesserer"), w("Schwarzmaler")
+        ]
+      },
+      eigenschaften: {
+        name: "Eigenschaften",
+        items: [
+          w("Leute ohne Stil"), w("Orientierungslose"), w("Leute ohne Geduld"), w("Leute ohne Zeitgefühl"),
+          w("Vergessliche"), w("Tollpatsche"), w("Handwerklich Unbegabte", "für handwerklich Unbegabte"),
+          w("Entscheidungsscheue"), w("Leute ohne Kochtalent"), w("Schüchterne"), w("Ordnungsfanatiker"),
+          w("Leute ohne Humor"), w("Ewig Gestresste", "für ewig Gestresste"), w("Überfürsorgliche"),
+          w("Flunkerer"), w("Dauer-Optimisten"), w("Leute ohne Ausdauer"), w("Neugierige"),
+          w("Abergläubische"), w("Leute ohne Plan")
+        ]
+      },
+      lebenslagen: {
+        name: "Lebenslagen",
+        items: [
+          w("Frisch Verliebte", "für frisch Verliebte"), w("Leute mitten im Umzug"),
+          w("Frischgebackene Eltern", "für frischgebackene Eltern"), w("Erstsemester"),
+          w("Frisch Getrennte", "für frisch Getrennte"), w("Neu Zugezogene", "für neu Zugezogene"),
+          w("Leute im Ruhestand"), w("Dauerpendler"), w("Leute im Homeoffice"), w("Brautpaare"),
+          w("Azubis am ersten Tag"), w("Leute auf Jobsuche"), w("Gestrandete Reisende", "für gestrandete Reisende"),
+          w("Leute auf Diät"), w("Leute vor der Prüfung"), w("Festivalgänger"), w("Bauherren"),
+          w("Partygastgeber"), w("Urlaubsreife"), w("Leute mit Kater")
         ]
       }
     },

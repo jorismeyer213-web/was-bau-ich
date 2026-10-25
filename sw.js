@@ -1,5 +1,5 @@
 /* Was bau ich? – Service Worker: App-Hülle für offline vorhalten, Schriften merken. */
-const VERSION = "wbi-v2";
+const VERSION = "wbi-v3";
 const SHELL = [
   "./",
   "index.html",
@@ -49,10 +49,11 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // eigene Dateien: Netz zuerst (damit Updates sofort ankommen), offline aus dem Cache
+  // eigene Dateien: Netz zuerst und am HTTP-Cache vorbei nachfragen (sonst mischen sich
+  // nach einem Update alte und neue Dateien), offline aus dem Cache
   if (url.origin === self.location.origin) {
     event.respondWith(
-      fetch(req)
+      fetch(req, { cache: "no-cache" })
         .then((res) => {
           if (res.ok) {
             const copy = res.clone();
