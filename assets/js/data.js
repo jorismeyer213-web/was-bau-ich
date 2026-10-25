@@ -385,6 +385,113 @@
             ["Siebdruck-Werkstatt", "für eine Siebdruck-Werkstatt zum Mitmachen"]
           ])
         ]
+      },
+
+      // Menschentypen: abwechselnd männlich/weiblich, bewusst gegen die üblichen Klischees verteilt
+      typen: {
+        name: "Menschentypen",
+        bereiche: [
+          b("Chaotin", [
+            ["Chaotin, die jeden Morgen ihren Schlüssel sucht", "für eine Chaotin, die jeden Morgen ihren Schlüssel sucht"],
+            ["Chaotin, die drei Kalender gleichzeitig führt", "für eine Chaotin, die drei Kalender gleichzeitig führt"],
+            ["Chaotin, die ihre Belege im Schuhkarton sammelt", "für eine Chaotin, die ihre Belege im Schuhkarton sammelt"]
+          ]),
+          b("Perfektionist", [
+            ["Perfektionist, der jede Mail fünfmal liest", "für einen Perfektionisten, der jede Mail fünfmal liest"],
+            ["Perfektionist, der seine Gewürze alphabetisch sortiert", "für einen Perfektionisten, der seine Gewürze alphabetisch sortiert"],
+            ["Perfektionist, der etwas halb fertig abgeben muss", "für einen Perfektionisten, der etwas halb fertig abgeben muss"]
+          ]),
+          b("Morgenmuffel", [
+            ["Morgenmuffel, der vor dem ersten Kaffee nicht spricht", "für einen Morgenmuffel, der vor dem ersten Kaffee nicht spricht"],
+            ["Morgenmuffel, der plötzlich Frühschicht hat", "für einen Morgenmuffel, der plötzlich Frühschicht hat"],
+            ["Morgenmuffel, dessen Wecker fünfmal klingelt", "für einen Morgenmuffel, dessen Wecker fünfmal klingelt"]
+          ]),
+          b("Besserwisser", [
+            ["Besserwisser, der dem Navi widerspricht", "für einen Besserwisser, der dem Navi widerspricht"],
+            ["Besserwisser, der im Familien-Chat Fakten checkt", "für einen Besserwisser, der im Familien-Chat Fakten checkt"],
+            ["Besserwisser, der beim Kneipenquiz verliert", "für einen Besserwisser, der beim Kneipenquiz verliert"]
+          ]),
+          b("Sparfüchsin", [
+            ["Sparfüchsin, die jeden Gutschein sammelt", "für eine Sparfüchsin, die jeden Gutschein sammelt"],
+            ["Sparfüchsin, die den Urlaub in Excel plant", "für eine Sparfüchsin, die den Urlaub in Excel plant"],
+            ["Sparfüchsin, die sich endlich etwas gönnen will", "für eine Sparfüchsin, die sich endlich etwas gönnen will"]
+          ]),
+          b("Zuspätkommer", [
+            ["Zuspätkommer, der einen Flug erwischen muss", "für einen Zuspätkommer, der einen Flug erwischen muss"],
+            ["Zuspätkommer, der immer noch fünf Minuten braucht", "für einen Zuspätkommer, der immer noch fünf Minuten braucht"],
+            ["Zuspätkommer, der zur eigenen Hochzeit muss", "für einen Zuspätkommer, der zur eigenen Hochzeit muss"]
+          ]),
+          b("Nörglerin", [
+            ["Nörglerin, die jedes Restaurant schlecht bewertet", "für eine Nörglerin, die jedes Restaurant schlecht bewertet"],
+            ["Nörglerin, die sich über jedes Wetter beschwert", "für eine Nörglerin, die sich über jedes Wetter beschwert"],
+            ["Nörglerin, die ausnahmsweise etwas loben soll", "für eine Nörglerin, die ausnahmsweise etwas loben soll"]
+          ]),
+          b("Jammerlappen", [
+            ["Jammerlappen, dessen Akku bei 20 Prozent ist", "für einen Jammerlappen, dessen Akku bei 20 Prozent ist"],
+            ["Jammerlappen, der beim Umzug helfen soll", "für einen Jammerlappen, der beim Umzug helfen soll"],
+            ["Jammerlappen, der seinen ersten Halbmarathon läuft", "für einen Jammerlappen, der seinen ersten Halbmarathon läuft"]
+          ]),
+          b("Angeberin", [
+            ["Angeberin, die ihr neues Auto vorführt", "für eine Angeberin, die ihr neues Auto vorführt"],
+            ["Angeberin, die jede Reise in der Story postet", "für eine Angeberin, die jede Reise in der Story postet"],
+            ["Angeberin, die beim Grillen alles besser kann", "für eine Angeberin, die beim Grillen alles besser kann"]
+          ]),
+          b("Stubenhocker", [
+            ["Stubenhocker, der zum ersten Mal zeltet", "für einen Stubenhocker, der zum ersten Mal zeltet"],
+            ["Stubenhocker, der sich alles liefern lässt", "für einen Stubenhocker, der sich alles liefern lässt"],
+            ["Stubenhocker, der ein Wochenende ohne WLAN übersteht", "für einen Stubenhocker, der ein Wochenende ohne WLAN übersteht"]
+          ]),
+          b("Dränglerin", [
+            ["Dränglerin, die an der Kasse schiebt", "für eine Dränglerin, die an der Kasse schiebt"],
+            ["Dränglerin, die auf der Autobahn Lichthupe gibt", "für eine Dränglerin, die auf der Autobahn Lichthupe gibt"],
+            ["Dränglerin, die im Freizeitpark anstehen muss", "für eine Dränglerin, die im Freizeitpark anstehen muss"]
+          ]),
+          b("Helikopter-Vater", [
+            ["Helikopter-Vater, der den Schulweg per GPS verfolgt", "für einen Helikopter-Vater, der den Schulweg per GPS verfolgt"],
+            ["Helikopter-Vater, dessen Kind auf Klassenfahrt fährt", "für einen Helikopter-Vater, dessen Kind auf Klassenfahrt fährt"],
+            ["Helikopter-Vater, der loslassen lernen will", "für einen Helikopter-Vater, der loslassen lernen will"]
+          ]),
+          b("Cholerikerin", [
+            ["Cholerikerin, die beim Brettspiel verliert", "für eine Cholerikerin, die beim Brettspiel verliert"],
+            ["Cholerikerin, deren Drucker streikt", "für eine Cholerikerin, deren Drucker streikt"],
+            ["Cholerikerin, die einen Yoga-Kurs ausprobiert", "für eine Cholerikerin, die einen Yoga-Kurs ausprobiert"]
+          ]),
+          b("Plaudertasche", [
+            ["Plaudertasche, die jedes Gerücht im Haus kennt", "für eine Plaudertasche, die jedes Gerücht im Haus kennt"],
+            ["Plaudertasche, die ein Geheimnis bewahren soll", "für eine Plaudertasche, die ein Geheimnis bewahren soll"],
+            ["Plaudertasche, die Sprachnachrichten in Hörbuchlänge schickt", "für eine Plaudertasche, die Sprachnachrichten in Hörbuchlänge schickt", true]
+          ]),
+          b("Technik-Nerd", [
+            ["Technik-Nerd, der sein Zuhause komplett smart macht", "für einen Technik-Nerd, der sein Zuhause komplett smart macht"],
+            ["Technik-Nerd, der den Eltern das Handy einrichtet", "für einen Technik-Nerd, der den Eltern das Handy einrichtet"],
+            ["Technik-Nerd, der eine Woche offline sein soll", "für einen Technik-Nerd, der eine Woche offline sein soll"]
+          ]),
+          b("Fitness-Fanatiker", [
+            ["Fitness-Fanatiker, der jeden Schritt zählt", "für einen Fitness-Fanatiker, der jeden Schritt zählt"],
+            ["Fitness-Fanatiker, der um 5 Uhr joggen geht", "für einen Fitness-Fanatiker, der um 5 Uhr joggen geht"],
+            ["Fitness-Fanatiker, der einen Ruhetag einlegen muss", "für einen Fitness-Fanatiker, der einen Ruhetag einlegen muss"]
+          ]),
+          b("Aufschieberin", [
+            ["Aufschieberin, die morgen ihre Hausarbeit abgeben muss", "für eine Aufschieberin, die morgen ihre Hausarbeit abgeben muss"],
+            ["Aufschieberin, die seit drei Jahren ihr Fahrrad reparieren will", "für eine Aufschieberin, die seit drei Jahren ihr Fahrrad reparieren will"],
+            ["Aufschieberin, die endlich die Steuer macht", "für eine Aufschieberin, die endlich die Steuer macht"]
+          ]),
+          b("Weltverbesserer", [
+            ["Weltverbesserer, der seiner WG Mülltrennung beibringt", "für einen Weltverbesserer, der seiner WG Mülltrennung beibringt"],
+            ["Weltverbesserer, der eine Petition startet", "für einen Weltverbesserer, der eine Petition startet"],
+            ["Weltverbesserer, der beim Familienessen diskutiert", "für einen Weltverbesserer, der beim Familienessen diskutiert"]
+          ]),
+          b("Schwarzmalerin", [
+            ["Schwarzmalerin, die vor jedem Ausflug Regen sieht", "für eine Schwarzmalerin, die vor jedem Ausflug Regen sieht"],
+            ["Schwarzmalerin, die ein Start-up gründet", "für eine Schwarzmalerin, die ein Start-up gründet"],
+            ["Schwarzmalerin, die plötzlich im Lotto gewinnt", "für eine Schwarzmalerin, die plötzlich im Lotto gewinnt", true]
+          ]),
+          b("Spießerin", [
+            ["Spießerin, die den Rasen mit der Nagelschere schneidet", "für eine Spießerin, die den Rasen mit der Nagelschere schneidet", true],
+            ["Spießerin, die die Hausordnung auswendig kennt", "für eine Spießerin, die die Hausordnung auswendig kennt"],
+            ["Spießerin, die zum ersten Mal auf ein Festival geht", "für eine Spießerin, die zum ersten Mal auf ein Festival geht"]
+          ])
+        ]
       }
     },
 
