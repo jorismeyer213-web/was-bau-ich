@@ -135,7 +135,21 @@
         <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
       </button>
     </div>
+    <div class="search">
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input type="search" id="termSearch" placeholder="Begriff suchen …" autocomplete="off" spellcheck="false" aria-label="Begriff suchen">
+    </div>
+    <div class="search-results" id="searchResults" hidden></div>
     <div class="opts" id="opts"></div>
+    <div class="reset">
+      <button class="text-btn" id="resetBtn" type="button">Alle Filter zurücksetzen</button>
+      <span class="confirm" id="resetConfirm" hidden>
+        Alles wieder einschalten?
+        <button class="text-btn text-btn--accent" id="resetYes" type="button">Ja</button>
+        <span aria-hidden="true">·</span>
+        <button class="text-btn" id="resetNo" type="button">Nein</button>
+      </span>
+    </div>
     <div class="opt-group">
       <p class="opt-group__title">Sonstiges</p>
       <label class="opt" for="optSound">

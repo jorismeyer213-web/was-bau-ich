@@ -1,5 +1,5 @@
 /* Was bau ich? – Service Worker: App-Hülle für offline vorhalten, Schriften merken. */
-const VERSION = "wbi-v3";
+const VERSION = "wbi-v4";
 const SHELL = [
   "./",
   "index.html",

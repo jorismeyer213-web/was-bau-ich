@@ -93,10 +93,23 @@
     }
     if (typeof saved.twistOn === "boolean") out.twistOn = saved.twistOn;
     if (typeof saved.sound === "boolean") out.sound = saved.sound;
+    out.off = Array.isArray(saved.off) ? saved.off.filter((s) => typeof s === "string") : [];
     return out;
   }
   const settings = loadSettings();
   const saveSettings = () => store.set(KEY_SETTINGS, settings);
+
+  // Einzeln abgewählte Begriffe, gültig in beiden Modi. Schlüssel „Art:Gruppe:Name“ –
+  // der Name statt des Index, damit neue Einträge in data.js nichts verschieben.
+  // Arten: f = Format, b = Themen-Bereich, w = Für wen, t = Twist
+  const offTerms = new Set(settings.off);
+  const termKey = (kind, group, name) => `${kind}:${group}:${name}`;
+  const termOn = (kind, group, name) => !offTerms.has(termKey(kind, group, name));
+  function setTermOn(key, on) {
+    if (on) offTerms.delete(key);
+    else offTerms.add(key);
+    settings.off = [...offTerms];
+  }
 
   let history = (store.get(KEY_HISTORY, []) || []).filter((h) => h && h.ref && typeof h.text === "string").slice(0, HISTORY_MAX);
   const saveHistory = () => store.set(KEY_HISTORY, history);
@@ -155,29 +168,43 @@
 
   const isFuer = () => settings.mode === "fuer";
 
+  const asItem = (it, key, g, idx) => ({ ...it, group: key, groupName: g.name, idx });
+  const asTwist = (it, key, g, idx) => ({ ...it, type: key, typeName: g.name, idx });
+
+  // Sammelt einen Topf aus eingeschalteten Gruppen und nicht abgewählten Begriffen. Wird er leer
+  // (z. B. weil im anderen Modus alles abgewählt wurde), zählt erst die ganze Gruppe, dann alles.
+  function collect(groups, groupFlags, kind, listOf, map) {
+    const build = (useOff, useGroups) => {
+      const out = [];
+      for (const [key, g] of Object.entries(groups)) {
+        if (useGroups && groupFlags && !groupFlags[key]) continue;
+        listOf(g).forEach((it, idx) => {
+          if (!useOff || termOn(kind, key, it.name)) out.push(map(it, key, g, idx));
+        });
+      }
+      return out;
+    };
+    let out = build(true, true);
+    if (!out.length) out = build(false, true);
+    if (!out.length) out = build(false, false);
+    return out;
+  }
+
   function buildPools() {
-    const formats = [];
-    const bereiche = [];
-    const fuer = [];
-    const twists = [];
-    const formatGroups = isFuer() ? FORMAT_GROUPS : D.formate;
-    const formatOn = isFuer() ? settings.formateFuer : settings.formate;
-    for (const [key, g] of Object.entries(formatGroups)) {
-      if (formatOn[key]) g.items.forEach((it, idx) => formats.push({ ...it, group: key, groupName: g.name, idx }));
-    }
+    const items = (g) => g.items;
+    let bereiche = [];
+    let fuer = [];
+    let twists;
+    const formats = isFuer()
+      ? collect(FORMAT_GROUPS, settings.formateFuer, "f", items, asItem)
+      : collect(D.formate, settings.formate, "f", items, asItem);
     if (isFuer()) {
-      for (const [key, g] of Object.entries(D.fuer)) {
-        if (settings.fuer[key]) g.items.forEach((it, idx) => fuer.push({ ...it, group: key, groupName: g.name, idx }));
-      }
+      fuer = collect(D.fuer, settings.fuer, "w", items, asItem);
       // eine Twist-Zielgruppe würde sich mit „Für wen“ beißen, deshalb nur Stile
-      D.twist.stil.items.forEach((it, idx) => twists.push({ ...it, type: "stil", typeName: D.twist.stil.name, idx }));
+      twists = collect({ stil: D.twist.stil }, null, "t", items, asTwist);
     } else {
-      for (const [key, g] of Object.entries(D.themen)) {
-        if (settings.themen[key]) g.bereiche.forEach((it, idx) => bereiche.push({ ...it, group: key, groupName: g.name, idx }));
-      }
-      for (const [key, g] of Object.entries(D.twist)) {
-        if (settings.twist[key]) g.items.forEach((it, idx) => twists.push({ ...it, type: key, typeName: g.name, idx }));
-      }
+      bereiche = collect(D.themen, settings.themen, "b", (g) => g.bereiche, asItem);
+      twists = collect(D.twist, settings.twist, "t", items, asTwist);
     }
     pools = { formats, bereiche, fuer, twists };
     bags = {
@@ -857,21 +884,28 @@
 
   /* ---------- Filter ---------- */
 
-  // Im Modus „Für wen“ gibt es eigene Format-Schalter (mit Produktideen) und keinen Twist-Filter (nur Stile).
+  // Abschnitte des Filter-Menüs je Modus. kind: Art für abgewählte Begriffe, list: die Begriffe einer
+  // Gruppe, fixed: Gruppe ohne eigenen Schalter (Stile sind im Modus „Für wen“ immer der Twist-Topf).
   function sections() {
-    const items = (g) => g.items.length;
+    const items = (g) => g.items;
     if (isFuer()) {
       return [
-        { pool: "formateFuer", title: "Formate", src: FORMAT_GROUPS, count: items },
-        { pool: "fuer", title: "Für wen", src: D.fuer, count: items }
+        { pool: "formateFuer", kind: "f", title: "Formate", src: FORMAT_GROUPS, list: items },
+        { pool: "fuer", kind: "w", title: "Für wen", src: D.fuer, list: items },
+        { pool: "twist", kind: "t", title: "Twist würfelt aus", src: { stil: D.twist.stil }, list: items, fixed: true }
       ];
     }
     return [
-      { pool: "formate", title: "Formate", src: D.formate, count: items },
-      { pool: "themen", title: "Themen", src: D.themen, count: (g) => g.bereiche.length },
-      { pool: "twist", title: "Twist würfelt aus", src: D.twist, count: items }
+      { pool: "formate", kind: "f", title: "Formate", src: D.formate, list: items },
+      { pool: "themen", kind: "b", title: "Themen", src: D.themen, list: (g) => g.bereiche },
+      { pool: "twist", kind: "t", title: "Twist würfelt aus", src: D.twist, list: items }
     ];
   }
+
+  const groupOn = (sec, key) => !!sec.fixed || !!settings[sec.pool][key];
+  const activeIn = (sec, key) => sec.list(sec.src[key]).filter((it) => termOn(sec.kind, key, it.name)).length;
+  // so viele Begriffe gibt der Abschnitt gerade wirklich in den Topf
+  const available = (sec) => Object.keys(sec.src).reduce((n, key) => n + (groupOn(sec, key) ? activeIn(sec, key) : 0), 0);
 
   function el(tag, cls, text) {
     const n = document.createElement(tag);
@@ -880,61 +914,202 @@
     return n;
   }
 
+  const CHEVRON = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>';
   const optsWrap = $("opts");
+  const searchInput = $("termSearch");
+  const searchResults = $("searchResults");
+
+  // eine Zeile mit Häkchen für einen Begriff (im Aufklapp-Bereich oder in den Suchtreffern)
+  function termRow(sec, key, it, idx, prefix, meta) {
+    const id = `${prefix}-${sec.kind}-${key}-${idx}`;
+    const label = el("label", "term");
+    label.htmlFor = id;
+    const input = el("input", "check-input");
+    input.type = "checkbox";
+    input.id = id;
+    input.dataset.term = termKey(sec.kind, key, it.name);
+    input.dataset.section = sec.pool;
+    input.dataset.group = key;
+    const box = el("span", "check");
+    box.setAttribute("aria-hidden", "true");
+    label.append(input, box, el("span", "term__name", it.name));
+    if (meta) label.appendChild(el("span", "term__meta", meta));
+    return label;
+  }
 
   function renderOptions() {
-    const wrap = optsWrap;
-    wrap.textContent = "";
+    optsWrap.textContent = "";
     for (const sec of sections()) {
       const fs = el("fieldset", "opt-group");
       fs.appendChild(el("legend", "opt-group__title", sec.title));
       for (const [key, g] of Object.entries(sec.src)) {
-        const id = `opt-${sec.pool}-${key}`;
-        const label = el("label", "opt");
-        label.htmlFor = id;
-        const input = el("input", "switch-input");
-        input.type = "checkbox";
-        input.id = id;
-        input.setAttribute("role", "switch");
-        input.checked = !!settings[sec.pool][key];
-        input.dataset.pool = sec.pool;
-        input.dataset.key = key;
-        const sw = el("span", "switch");
-        sw.setAttribute("aria-hidden", "true");
-        label.append(el("span", "opt__name", g.name), el("span", "opt__count", String(sec.count(g))), input, sw);
-        fs.appendChild(label);
+        const listId = `terms-${sec.pool}-${key}`;
+        const row = el("div", "opt");
+        const expand = el("button", "opt__expand");
+        expand.type = "button";
+        expand.setAttribute("aria-expanded", "false");
+        expand.setAttribute("aria-controls", listId);
+        expand.innerHTML = CHEVRON;
+        const count = el("span", "opt__count");
+        count.dataset.count = `${sec.pool}:${key}`;
+        expand.append(el("span", "opt__name", g.name), count);
+        row.appendChild(expand);
+        if (!sec.fixed) {
+          const id = `opt-${sec.pool}-${key}`;
+          const label = el("label", "opt__switch");
+          label.htmlFor = id;
+          const input = el("input", "switch-input");
+          input.type = "checkbox";
+          input.id = id;
+          input.setAttribute("role", "switch");
+          input.setAttribute("aria-label", `${g.name} in den Topf`);
+          input.dataset.pool = sec.pool;
+          input.dataset.key = key;
+          const sw = el("span", "switch");
+          sw.setAttribute("aria-hidden", "true");
+          label.append(input, sw);
+          row.appendChild(label);
+        }
+        fs.appendChild(row);
+        const list = el("div", "terms");
+        list.id = listId;
+        list.hidden = true;
+        list.dataset.list = `${sec.pool}:${key}`;
+        sec.list(g).forEach((it, idx) => list.appendChild(termRow(sec, key, it, idx, "term")));
+        fs.appendChild(list);
       }
-      const note = el("p", "opt-group__note", "Mindestens eine Gruppe bleibt an.");
+      const note = el("p", "opt-group__note", "Mindestens ein Begriff bleibt an.");
       note.dataset.note = sec.pool;
       note.hidden = true;
       fs.appendChild(note);
-      wrap.appendChild(fs);
+      optsWrap.appendChild(fs);
     }
     refreshOptionStates();
   }
 
-  optsWrap.addEventListener("change", (e) => {
+  optsWrap.addEventListener("click", (e) => {
+    const btn = e.target.closest(".opt__expand");
+    if (!btn) return;
+    const open = btn.getAttribute("aria-expanded") !== "true";
+    btn.setAttribute("aria-expanded", String(open));
+    $(btn.getAttribute("aria-controls")).hidden = !open;
+  });
+
+  function onFilterChange(e) {
     const t = e.target;
-    if (!t.dataset || !t.dataset.pool) return;
-    settings[t.dataset.pool][t.dataset.key] = t.checked;
+    if (!t.dataset) return;
+    if (t.dataset.pool) {
+      const { pool, key } = t.dataset;
+      settings[pool][key] = t.checked;
+      // Gruppe wieder an, aber jeder Begriff darin abgewählt: dann alle Begriffe wieder an
+      const sec = sections().find((s) => s.pool === pool);
+      if (t.checked && sec && activeIn(sec, key) === 0) {
+        for (const it of sec.list(sec.src[key])) setTermOn(termKey(sec.kind, key, it.name), true);
+      }
+    } else if (t.dataset.term) {
+      setTermOn(t.dataset.term, t.checked);
+    } else {
+      return;
+    }
     saveSettings();
     buildPools();
     refreshOptionStates();
     updateCombos();
-  });
+  }
+  optsWrap.addEventListener("change", onFilterChange);
+  searchResults.addEventListener("change", onFilterChange);
 
+  // Häkchen, Schalter, Zähler und Sperren an den aktuellen Stand anpassen. Gesperrt wird, was den
+  // Abschnitt leer machen würde – pro Abschnitt bleibt mindestens ein Begriff im Topf.
   function refreshOptionStates() {
     for (const sec of sections()) {
-      const active = Object.keys(settings[sec.pool]).filter((k) => settings[sec.pool][k]);
-      const lastOne = active.length === 1;
+      const avail = available(sec);
+      let locked = false;
       for (const key of Object.keys(sec.src)) {
-        const input = $(`opt-${sec.pool}-${key}`);
-        if (input) input.disabled = lastOne && settings[sec.pool][key];
+        const on = groupOn(sec, key);
+        const active = activeIn(sec, key);
+        const total = sec.list(sec.src[key]).length;
+        const count = optsWrap.querySelector(`[data-count="${sec.pool}:${key}"]`);
+        if (count) count.textContent = active === total ? String(total) : `${active} / ${total}`;
+        const sw = $(`opt-${sec.pool}-${key}`);
+        if (sw) {
+          sw.checked = on;
+          sw.disabled = avail > 0 && on && avail - active <= 0;
+          if (sw.disabled) locked = true;
+        }
+        const list = optsWrap.querySelector(`[data-list="${sec.pool}:${key}"]`);
+        if (list) list.classList.toggle("is-off", !on);
       }
-      const note = document.querySelector(`[data-note="${sec.pool}"]`);
-      if (note) note.hidden = !lastOne;
+      document.querySelectorAll(`#settingsSheet input[data-section="${sec.pool}"]`).forEach((input) => {
+        const on = groupOn(sec, input.dataset.group);
+        input.checked = !offTerms.has(input.dataset.term);
+        const last = on && input.checked && avail <= 1;
+        input.disabled = !on || last;
+        if (last) locked = true;
+      });
+      // avail 0 geht nur über den anderen Modus (abgewählte Begriffe gelten in beiden); buildPools
+      // würfelt dann aus den ganzen Gruppen – das sagt der Hinweis, damit Menü und Würfel zusammenpassen
+      const note = optsWrap.querySelector(`[data-note="${sec.pool}"]`);
+      if (note) {
+        note.textContent = avail === 0
+          ? "Hier ist alles abgewählt (das gilt auch im anderen Modus). Bis du wieder etwas anhakst, würfelt die App aus allen Begriffen."
+          : "Mindestens ein Begriff bleibt an.";
+        note.hidden = !locked && avail > 0;
+      }
     }
   }
+
+  // Suche über alle Begriffe des aktuellen Modus; Groß-/Kleinschreibung und Akzente egal
+  const fold = (s) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+
+  function renderSearch() {
+    const q = fold(searchInput.value.trim());
+    optsWrap.hidden = q.length > 0;
+    searchResults.hidden = q.length === 0;
+    searchResults.textContent = "";
+    if (!q) return;
+    const hits = [];
+    for (const sec of sections()) {
+      for (const [key, g] of Object.entries(sec.src)) {
+        sec.list(g).forEach((it, idx) => {
+          if (fold(it.name).includes(q)) hits.push(termRow(sec, key, it, idx, "find", `${sec.title} · ${g.name}`));
+        });
+      }
+    }
+    searchResults.appendChild(el("p", "search__count", hits.length ? `${hits.length} Treffer` : "Nichts gefunden."));
+    hits.forEach((h) => searchResults.appendChild(h));
+    refreshOptionStates();
+  }
+  searchInput.addEventListener("input", renderSearch);
+
+  function resetFilters() {
+    for (const pool of ["formate", "themen", "twist", "formateFuer", "fuer"]) {
+      for (const k of Object.keys(settings[pool])) settings[pool][k] = true;
+    }
+    offTerms.clear();
+    settings.off = [];
+    saveSettings();
+    buildPools();
+    renderOptions();
+    renderSearch();
+    updateCombos();
+  }
+
+  $("resetBtn").addEventListener("click", () => {
+    $("resetBtn").hidden = true;
+    $("resetConfirm").hidden = false;
+    $("resetNo").focus();
+  });
+  $("resetNo").addEventListener("click", () => {
+    $("resetConfirm").hidden = true;
+    $("resetBtn").hidden = false;
+    $("resetBtn").focus();
+  });
+  $("resetYes").addEventListener("click", () => {
+    resetFilters();
+    $("resetConfirm").hidden = true;
+    $("resetBtn").hidden = false;
+  });
 
   const fmtNum = (n) => n.toLocaleString("de-DE");
 
@@ -1017,6 +1192,12 @@
   function openSheet(d) {
     if (d.open) return;
     if (d === historySheet) renderHistory();
+    if (d === settingsSheet) {
+      searchInput.value = "";
+      renderSearch();
+      $("resetConfirm").hidden = true;
+      $("resetBtn").hidden = false;
+    }
     d.classList.remove("is-closing");
     d.showModal();
   }
